@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Dispatch, SetStateAction } from 'react';
@@ -31,9 +32,10 @@ interface UrlInputFormProps {
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   setError: Dispatch<SetStateAction<string | null>>;
   isLoading: boolean;
+  setPreviewUrl: Dispatch<SetStateAction<string | null>>;
 }
 
-export function UrlInputForm({ setTestCases, setIsLoading, setError, isLoading }: UrlInputFormProps) {
+export function UrlInputForm({ setTestCases, setIsLoading, setError, isLoading, setPreviewUrl }: UrlInputFormProps) {
   const { toast } = useToast();
   const form = useForm<UrlFormValues>({
     resolver: zodResolver(formSchema),
@@ -46,6 +48,7 @@ export function UrlInputForm({ setTestCases, setIsLoading, setError, isLoading }
     setIsLoading(true);
     setError(null);
     setTestCases([]); // Clear previous test cases
+    setPreviewUrl(values.url); // Set preview URL immediately
 
     try {
       const result: GenerateTestCasesFromUrlOutput = await generateTestCasesFromUrl({ url: values.url });
@@ -59,7 +62,7 @@ export function UrlInputForm({ setTestCases, setIsLoading, setError, isLoading }
       } else {
         toast({
           title: "No test cases generated.",
-          description: "The AI couldn't find any test cases for this URL, or the URL might be inaccessible.",
+          description: "The AI couldn't find any test cases for this URL, or the URL might be inaccessible for AI analysis.",
           variant: "default",
         });
         setTestCases([]);
@@ -68,9 +71,10 @@ export function UrlInputForm({ setTestCases, setIsLoading, setError, isLoading }
       console.error("Error generating test cases:", error);
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
       setError(`Failed to generate test cases: ${errorMessage}`);
+      // Don't clear previewUrl on AI error, but do on iframe error (handled in page.tsx)
       toast({
-        title: "Error",
-        description: `Failed to generate test cases. ${errorMessage}`,
+        title: "Error Generating Tests",
+        description: `Failed to generate test cases. ${errorMessage}. The preview might still work.`,
         variant: "destructive",
       });
     } finally {
