@@ -28,6 +28,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning // Added to mitigate extension-caused hydration issues
       >
         <AppShell>{children}</AppShell>
         <Toaster />
