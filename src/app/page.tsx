@@ -62,7 +62,10 @@ export default function HomePage(): ReactElement {
               Generate Test Cases with AI
             </h1>
             <p className="text-muted-foreground mb-6">
-              Enter a URL of a web application, and our AI will analyze it to generate relevant test cases for you. The website will be previewed on the right.
+              Enter a URL to preview the web application on the right.
+              Our AI will generate test cases based on the URL currently in this input field.
+              If you navigate within the preview to a different page, you'll need to
+              manually update the URL in this field to target that new page for test generation.
             </p>
             <UrlInputForm
               setTestCases={setTestCases}
@@ -121,6 +124,7 @@ export default function HomePage(): ReactElement {
             <CardContent className="h-[600px] lg:h-[calc(100vh-16rem)]"> {/* Adjusted height */}
               {previewUrl ? (
                 <iframe
+                  id="website-preview-iframe" // Added an ID for potential future reference, though not used for URL capture here
                   src={previewUrl}
                   title="Website Preview"
                   className="w-full h-full border rounded-md"
