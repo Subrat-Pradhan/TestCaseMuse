@@ -12,15 +12,29 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Terminal, Eye, Copy as CopyIcon } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+
+const resolutions = [
+  { label: "Auto (Responsive)", value: "auto", type: "Responsive", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "1920x1080 (Full HD)", value: "1920x1080", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "1366x768 (HD)", value: "1366x768", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "1440x900", value: "1440x900", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "1280x720 (HD)", value: "1280x720", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "375x812 (iPhone X/XS)", value: "375x812", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "414x896 (iPhone XR/11 Max)", value: "414x896", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "360x780 (Tall Android)", value: "360x780", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
+];
+
 
 export default function HomePage(): ReactElement {
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedResolution, setSelectedResolution] = useState<string>("auto");
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
@@ -74,9 +88,17 @@ export default function HomePage(): ReactElement {
 
   useEffect(() => {
     if (previewUrl && error?.includes("Could not load preview")) {
-        setError(null);
+        setError(null); // Clear iframe error if previewUrl changes (e.g. user types a new one)
     }
-  }, [previewUrl, error]);
+  }, [previewUrl]); // Only depend on previewUrl and error type
+
+  const iframeDimensions = (() => {
+    if (selectedResolution === "auto" || !previewUrl) {
+      return { width: "100%", height: "100%", isFixed: false };
+    }
+    const [width, height] = selectedResolution.split('x').map(Number);
+    return { width: `${width}px`, height: `${height}px`, isFixed: true };
+  })();
 
 
   return (
@@ -91,7 +113,7 @@ export default function HomePage(): ReactElement {
             Generate Test Cases with AI
           </h1>
           <p className="text-muted-foreground mb-6">
-            Provide the URL of the web application you want to test. Once entered, the application will be previewed on the right. If you navigate to a different page within the preview, update the URL in this field accordingly.
+            Provide the URL of the web application you want to test. Once entered, the application will be previewed below. If you navigate to a different page within the preview, update the URL in this field or the preview URL field accordingly.
           </p>
           <UrlInputForm
             setTestCases={setTestCases}
@@ -100,7 +122,7 @@ export default function HomePage(): ReactElement {
             isLoading={isLoading}
             setPreviewUrl={setPreviewUrl}
           />
-          {error && !error.startsWith("Could not load preview") && ( // Only show AI errors here
+          {error && !error.startsWith("Could not load preview") && ( 
             <Alert variant="destructive" className="mt-4">
               <Terminal className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
@@ -109,10 +131,122 @@ export default function HomePage(): ReactElement {
           )}
         </section>
 
-        {/* Section 2: Test Cases */}
+        {/* Section 2: Website Preview */}
+        <div className="flex flex-col">
+          <Card className="shadow-lg flex-grow flex flex-col min-h-[600px]">
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <CardTitle className="flex items-center">
+                  <Eye className="mr-2 h-6 w-6 text-primary" />
+                  Website Preview
+                </CardTitle>
+                <div className="w-full sm:w-auto">
+                 <Select value={selectedResolution} onValueChange={setSelectedResolution}>
+                    <SelectTrigger className="w-full sm:w-[280px]" aria-label="Select preview resolution">
+                      <SelectValue placeholder="Select resolution" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {resolutions.map(res => (
+                        <SelectItem key={res.value} value={res.value}>
+                          <div className="flex items-center">
+                            {res.icon}
+                            {res.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {previewUrl ? (
+                <div className="flex items-center gap-2 mt-4">
+                  <Input
+                    type="url"
+                    value={previewUrl}
+                    onChange={(e) => {
+                        setPreviewUrl(e.target.value);
+                        if (error?.includes("Could not load preview")) setError(null);
+                    }}
+                    placeholder="Enter URL to preview"
+                    className="text-sm flex-grow"
+                    aria-label="Preview URL"
+                  />
+                  <Button variant="outline" size="icon" onClick={handleCopyPreviewUrl} aria-label="Copy preview URL">
+                    <CopyIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <CardDescription className="mt-2">
+                  The panel below displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features.
+                </CardDescription>
+              )}
+               {error && error.startsWith("Could not load preview") && (
+                <Alert variant="destructive" className="mt-4">
+                  <Terminal className="h-4 w-4" />
+                  <AlertTitle>Preview Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </CardHeader>
+            <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto">
+              {previewUrl ? (
+                <div 
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ 
+                        overflow: iframeDimensions.isFixed ? 'auto' : 'hidden', 
+                        flexGrow: 1 
+                    }}
+                >
+                    <iframe
+                        id="website-preview-iframe"
+                        src={previewUrl}
+                        title="Website Preview"
+                        width={iframeDimensions.isFixed ? iframeDimensions.width.replace('px', '') : "100%"}
+                        height={iframeDimensions.isFixed ? iframeDimensions.height.replace('px', '') : "100%"}
+                        style={{
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: 'var(--radius)',
+                            minWidth: iframeDimensions.isFixed ? iframeDimensions.width : '100%',
+                            minHeight: iframeDimensions.isFixed ? iframeDimensions.height : '100%',
+                            maxWidth: iframeDimensions.isFixed ? iframeDimensions.width : '100%',
+                            maxHeight: iframeDimensions.isFixed ? iframeDimensions.height : '100%',
+                        }}
+                        className={`${iframeDimensions.isFixed ? '' : 'w-full h-full flex-grow'}`}
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
+                        onError={(e) => {
+                            console.error("Iframe loading error:", e);
+                            setError("Could not load preview. The site might block embedding (X-Frame-Options), the URL is invalid/inaccessible, or it's a network issue.");
+                        }}
+                        onLoad={() => {
+                             if (error?.includes("Could not load preview")) setError(null); // Clear error on successful load
+                        }}
+                    />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full rounded-md border border-dashed text-center p-6 flex-grow">
+                  <div
+                    className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary"
+                    aria-hidden="true"
+                  >
+                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>
+                     </svg>
+                  </div>
+                  <h3 className="mt-4 text-lg font-medium">No preview available</h3>
+                  <p className="mb-4 mt-2 text-sm text-muted-foreground">
+                    Enter a valid URL in the form above to see a live preview here.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Section 3: Test Cases */}
         <section aria-labelledby="test-cases-heading" className="flex flex-col">
           {isLoading && testCases.length === 0 ? ( 
-            <div className="space-y-4 p-1 flex-grow flex flex-col"> {/* Added padding for consistency and flex for skeleton */}
+            <div className="space-y-4 p-1 flex-grow flex flex-col">
               <div className="flex justify-between items-center">
                 <Skeleton className="h-8 w-1/3" />
                 <div className="flex gap-2">
@@ -121,7 +255,7 @@ export default function HomePage(): ReactElement {
                   <Skeleton className="h-10 w-24" />
                 </div>
               </div>
-              <Skeleton className="h-96 w-full flex-grow" /> {/* flex-grow for skeleton body */}
+              <Skeleton className="h-96 w-full flex-grow" />
             </div>
           ) : (
             <TestCaseTable
@@ -134,74 +268,6 @@ export default function HomePage(): ReactElement {
             />
           )}
         </section>
-
-        {/* Section 3: Website Preview */}
-        <div className="flex flex-col">
-          <Card className="shadow-lg flex-grow flex flex-col min-h-[600px]"> {/* Added min-h for better default preview height */}
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Eye className="mr-2 h-6 w-6 text-primary" />
-                Website Preview
-              </CardTitle>
-              {previewUrl ? (
-                <div className="flex items-center gap-2 mt-2">
-                  <Input
-                    type="url"
-                    value={previewUrl}
-                    onChange={(e) => setPreviewUrl(e.target.value)}
-                    placeholder="Enter URL to preview"
-                    className="text-sm"
-                    aria-label="Preview URL"
-                  />
-                  <Button variant="outline" size="icon" onClick={handleCopyPreviewUrl} aria-label="Copy preview URL">
-                    <CopyIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <CardDescription>
-                  The right panel displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features. Any changes made within the iframe will be reflected here.
-                </CardDescription>
-              )}
-               {error && error.startsWith("Could not load preview") && ( // Show iframe specific errors here
-                <Alert variant="destructive" className="mt-4">
-                  <Terminal className="h-4 w-4" />
-                  <AlertTitle>Preview Error</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-            </CardHeader>
-            <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4"> {/* Adjusted padding */}
-              {previewUrl ? (
-                <iframe
-                  id="website-preview-iframe"
-                  src={previewUrl}
-                  title="Website Preview"
-                  className="w-full h-full border rounded-md flex-grow"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
-                  onError={(e) => {
-                    console.error("Iframe loading error:", e);
-                    setError("Could not load preview. The site might block embedding (X-Frame-Options), or the URL is invalid/inaccessible, or it might be a network issue.");
-                  }}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full rounded-md border border-dashed text-center p-6">
-                  <div
-                    className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary"
-                    aria-hidden="true"
-                  >
-                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>
-                     </svg>
-                  </div>
-                  <h3 className="mt-4 text-lg font-medium">No preview available</h3>
-                  <p className="mb-4 mt-2 text-sm text-muted-foreground">
-                    Enter a valid URL in the form on the left to see a live preview here.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
       </div>
 
       <AddTestCaseDialog
@@ -221,3 +287,6 @@ export default function HomePage(): ReactElement {
     </div>
   );
 }
+
+
+    
