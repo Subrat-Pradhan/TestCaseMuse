@@ -63,10 +63,16 @@ export default function HomePage(): ReactElement {
     try {
       const result: GenerateTestCasesFromUrlOutput = await generateTestCasesFromUrl({ url });
       if (result.testCases && result.testCases.length > 0) {
-        setTestCases(prev => append ? [...prev, ...(result.testCases as TestCase[])] : (result.testCases as TestCase[]));
+        // Ensure unique IDs before setting state
+        const uniqueTestCases = result.testCases.map(tc => ({
+          ...tc,
+          id: crypto.randomUUID() // Assign new UUID
+        })) as TestCase[];
+        
+        setTestCases(prev => append ? [...prev, ...uniqueTestCases] : uniqueTestCases);
         toast({
           title: "Success!",
-          description: `${result.testCases.length} test cases ${append ? 'added' : 'generated'}.`,
+          description: `${uniqueTestCases.length} test cases ${append ? 'added' : 'generated'}.`,
           className: "bg-accent text-accent-foreground",
         });
       } else {
@@ -146,12 +152,9 @@ export default function HomePage(): ReactElement {
 
   const iframeDimensions = (() => {
     if (selectedResolution === "auto" || !previewUrl) {
-      // For auto mode, width/height are handled by CSS (w-full, h-full)
-      // The attributes on iframe tag will be "100%"
       return { width: "100%", height: "100%", isFixed: false };
     }
     const [width, height] = selectedResolution.split('x').map(Number);
-    // For fixed mode, width/height are pixel values for the attributes
     return { width: `${width}px`, height: `${height}px`, isFixed: true };
   })();
 
@@ -164,7 +167,6 @@ export default function HomePage(): ReactElement {
     }
   : {
       // For auto/responsive mode, CSS classes (w-full, h-full) handle sizing.
-      // No specific min/max needed here if w-full/h-full fill parent correctly.
     };
 
 
@@ -198,11 +200,11 @@ export default function HomePage(): ReactElement {
         </section>
 
         {/* Section 2: Website Preview */}
-        <div className="flex flex-col">
+        <section aria-labelledby="website-preview-heading" className="flex flex-col">
           <Card className="shadow-lg flex-grow flex flex-col min-h-[600px]">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <CardTitle className="flex items-center">
+                <CardTitle id="website-preview-heading" className="flex items-center">
                   <Eye className="mr-2 h-6 w-6 text-primary" />
                   Website Preview
                 </CardTitle>
@@ -246,7 +248,7 @@ export default function HomePage(): ReactElement {
                 </div>
               ) : (
                 <CardDescription className="mt-2">
-                 The panel below displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features. Any changes made within the iframe will be reflected here.
+                  The panel below displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features. Any changes made within the iframe will be reflected here.
                 </CardDescription>
               )}
                {error && error.startsWith("Could not load preview") && (
@@ -260,15 +262,15 @@ export default function HomePage(): ReactElement {
             <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto">
               {previewUrl ? (
                 <div 
-                    className="w-full flex items-center justify-center" // Removed h-full, flex-grow will handle height
+                    className="w-full flex items-center justify-center"
                     style={{ 
                         overflow: iframeDimensions.isFixed ? 'auto' : 'hidden', 
-                        flexGrow: 1 // This makes the wrapper div take available space in CardContent
+                        flexGrow: 1 
                     }}
                 >
                     <iframe
                         id="website-preview-iframe"
-                        key={previewUrl + selectedResolution} // Force re-render on URL or resolution change
+                        key={previewUrl + selectedResolution} 
                         src={previewUrl}
                         title="Website Preview"
                         width={iframeDimensions.isFixed ? iframeDimensions.width.replace('px', '') : "100%"}
@@ -276,9 +278,9 @@ export default function HomePage(): ReactElement {
                         style={{
                             border: '1px solid hsl(var(--border))',
                             borderRadius: 'var(--radius)',
-                            ...iframeDynamicStyles // Apply dynamic sizing styles
+                            ...iframeDynamicStyles 
                         }}
-                        className={cn(iframeDimensions.isFixed ? '' : 'w-full h-full')} // Use w-full h-full for auto, no flex-grow here
+                        className={cn(iframeDimensions.isFixed ? '' : 'w-full h-full')} 
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
                         onError={(e) => {
                             console.error("Iframe loading error:", e);
@@ -307,7 +309,7 @@ export default function HomePage(): ReactElement {
               )}
             </CardContent>
           </Card>
-        </div>
+        </section>
 
         {/* Section 3: Test Cases */}
         <section aria-labelledby="test-cases-heading" className="flex flex-col">
