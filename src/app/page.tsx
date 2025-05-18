@@ -81,11 +81,11 @@ export default function HomePage(): ReactElement {
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col gap-8">
         {/* Section 1: URL Input */}
         <section
           aria-labelledby="url-input-heading"
-          className="lg:w-1/3 flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm p-6"
+          className="flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm p-6"
         >
           <h1 id="url-input-heading" className="text-2xl font-semibold mb-4">
             Generate Test Cases with AI
@@ -110,7 +110,7 @@ export default function HomePage(): ReactElement {
         </section>
 
         {/* Section 2: Test Cases */}
-        <section aria-labelledby="test-cases-heading" className="lg:w-1/3 flex flex-col">
+        <section aria-labelledby="test-cases-heading" className="flex flex-col">
           {isLoading && testCases.length === 0 ? ( 
             <div className="space-y-4 p-1 flex-grow flex flex-col"> {/* Added padding for consistency and flex for skeleton */}
               <div className="flex justify-between items-center">
@@ -136,8 +136,8 @@ export default function HomePage(): ReactElement {
         </section>
 
         {/* Section 3: Website Preview */}
-        <div className="lg:w-1/3 flex flex-col">
-          <Card className="shadow-lg flex-grow flex flex-col">
+        <div className="flex flex-col">
+          <Card className="shadow-lg flex-grow flex flex-col min-h-[600px]"> {/* Added min-h for better default preview height */}
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Eye className="mr-2 h-6 w-6 text-primary" />
