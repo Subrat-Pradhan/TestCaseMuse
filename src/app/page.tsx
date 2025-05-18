@@ -20,15 +20,13 @@ import { generateTestCasesFromUrl, type GenerateTestCasesFromUrlOutput } from '@
 import { cn } from '@/lib/utils';
 
 const resolutions = [
-  { label: "Auto (Responsive)", value: "auto", type: "Responsive", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
-  { label: "1920x1080 (Full HD)", value: "1920x1080", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
   { label: "1366x768 (HD)", value: "1366x768", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "1920x1080 (Full HD)", value: "1920x1080", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
   { label: "1440x900", value: "1440x900", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
   { label: "1280x720 (HD)", value: "1280x720", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
   { label: "375x812 (iPhone X/XS)", value: "375x812", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
   { label: "414x896 (iPhone XR/11 Max)", value: "414x896", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
   { label: "360x780 (Tall Android)", value: "360x780", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
-  { label: "1080x2400 (Modern Android)", value: "1080x2400", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
 ];
 
 
@@ -38,7 +36,7 @@ export default function HomePage(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [urlForForm, setUrlForForm] = useState<string | null>(null);
-  const [selectedResolution, setSelectedResolution] = useState<string>("auto");
+  const [selectedResolution, setSelectedResolution] = useState<string>("1366x768");
   const [testCaseCounter, setTestCaseCounter] = useState<number>(1);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
@@ -58,7 +56,7 @@ export default function HomePage(): ReactElement {
     
     let currentCounter = append ? testCaseCounter : 1;
     if (!append) {
-      setTestCases([]);
+      setTestCases([]); // Clear existing test cases only if not appending
     }
     setPreviewUrl(url); 
     setUrlForForm(url); 
@@ -70,10 +68,10 @@ export default function HomePage(): ReactElement {
           const formattedId = `TC${String(currentCounter).padStart(3, '0')}`;
           currentCounter++;
           return { ...tc, id: formattedId };
-        }) as TestCase[];
+        });
         
         setTestCases(prev => append ? [...prev, ...newTestCases] : newTestCases);
-        setTestCaseCounter(currentCounter);
+        setTestCaseCounter(currentCounter); // Update counter after processing all new TCs
         toast({
           title: "Success!",
           description: `${newTestCases.length} test cases ${append ? 'added' : 'generated'}.`,
@@ -85,7 +83,7 @@ export default function HomePage(): ReactElement {
           description: "The AI couldn't find any new test cases for this URL, or the URL might be inaccessible for AI analysis.",
           variant: "default",
         });
-        if (!append) setTestCases([]);
+        if (!append && testCases.length === 0) setTestCases([]); // Only clear if not appending and no TCs existed before
       }
     } catch (err) {
       console.error("Error generating test cases:", err);
@@ -160,23 +158,20 @@ export default function HomePage(): ReactElement {
 
 
   const iframeDimensions = (() => {
-    if (selectedResolution === "auto" || !previewUrl) {
-      return { width: "100%", height: "100%", isFixed: false };
+    if (!previewUrl || !selectedResolution) { // No "auto" mode, so rely on selectedResolution
+      return { width: "0px", height: "0px", isFixed: false }; // Default to not fixed if no preview or resolution
     }
     const [width, height] = selectedResolution.split('x').map(Number);
     return { width: `${width}px`, height: `${height}px`, isFixed: true };
   })();
 
-  const iframeDynamicStyles = iframeDimensions.isFixed
-  ? {
-      minWidth: iframeDimensions.width,
-      minHeight: iframeDimensions.height,
-      maxWidth: iframeDimensions.width,
-      maxHeight: iframeDimensions.height,
-    }
-  : {
-      flexGrow: 1 
-    };
+  // Styles for the iframe itself
+  const iframeDynamicStyles = {
+    minWidth: iframeDimensions.width,
+    minHeight: iframeDimensions.height,
+    maxWidth: iframeDimensions.width,
+    maxHeight: iframeDimensions.height,
+  };
 
 
   return (
@@ -191,7 +186,7 @@ export default function HomePage(): ReactElement {
             Generate Test Cases with AI
           </h1>
           <p className="text-muted-foreground mb-6">
-           Provide the URL of the web application you want to test. Use "Preview" to load the site below, or "Generate Tests" to preview and create test cases. If you navigate within the preview, update the URL in this field or the preview URL field to generate tests for the new page.
+            Provide the URL of the web application you want to test. Use "Preview" to load the site below, or "Generate Tests" to preview and create test cases. If you navigate within the preview, update the URL in this field or the preview URL field to generate tests for the new page.
           </p>
           <UrlInputForm
             onGenerateTests={(url) => handleGenerateTests(url, false)}
@@ -271,12 +266,14 @@ export default function HomePage(): ReactElement {
             <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto">
               {previewUrl ? (
                 <div 
-                    className="w-full"
+                    className="w-full" // Takes full width of padded CardContent
                     style={{ 
-                        overflow: iframeDimensions.isFixed ? 'auto' : undefined, 
+                        overflow: 'auto', // Wrapper div is scrollable
                         display: 'flex', 
-                        flexDirection: 'column', 
-                        flexGrow: 1,
+                        flexDirection: 'column', // Align items on vertical axis
+                        justifyContent: 'center', // Center iframe vertically
+                        alignItems: 'center', // Center iframe horizontally
+                        flexGrow: 1, // Takes available vertical space
                     }}
                 >
                     <iframe
@@ -284,17 +281,14 @@ export default function HomePage(): ReactElement {
                         key={previewUrl + selectedResolution} 
                         src={previewUrl}
                         title="Website Preview"
-                        width={iframeDimensions.isFixed ? iframeDimensions.width.replace('px', '') : "100%"}
-                        height={iframeDimensions.isFixed ? iframeDimensions.height.replace('px', '') : "100%"}
+                        width={iframeDimensions.width.replace('px','')}
+                        height={iframeDimensions.height.replace('px','')}
                         style={{
                             border: '1px solid hsl(var(--border))',
                             borderRadius: 'var(--radius)',
-                            ...iframeDynamicStyles,
-                            ...( !iframeDimensions.isFixed && { flexGrow: 1 } )
+                            ...iframeDynamicStyles, // Applies fixed width/height
                         }}
-                        className={cn(
-                            !iframeDimensions.isFixed && 'w-full h-full' 
-                        )} 
+                        // No w-full h-full needed here, size is fixed by styles
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
                         onError={(e) => {
                             console.error("Iframe loading error:", e);
