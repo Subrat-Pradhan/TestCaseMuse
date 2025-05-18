@@ -17,6 +17,7 @@ import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor, WandSparkles } fr
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { generateTestCasesFromUrl, type GenerateTestCasesFromUrlOutput } from '@/ai/flows/generate-test-cases-from-url';
+import { cn } from '@/lib/utils';
 
 const resolutions = [
   { label: "Auto (Responsive)", value: "auto", type: "Responsive", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
@@ -145,11 +146,26 @@ export default function HomePage(): ReactElement {
 
   const iframeDimensions = (() => {
     if (selectedResolution === "auto" || !previewUrl) {
+      // For auto mode, width/height are handled by CSS (w-full, h-full)
+      // The attributes on iframe tag will be "100%"
       return { width: "100%", height: "100%", isFixed: false };
     }
     const [width, height] = selectedResolution.split('x').map(Number);
+    // For fixed mode, width/height are pixel values for the attributes
     return { width: `${width}px`, height: `${height}px`, isFixed: true };
   })();
+
+  const iframeDynamicStyles = iframeDimensions.isFixed
+  ? {
+      minWidth: iframeDimensions.width,
+      minHeight: iframeDimensions.height,
+      maxWidth: iframeDimensions.width,
+      maxHeight: iframeDimensions.height,
+    }
+  : {
+      // For auto/responsive mode, CSS classes (w-full, h-full) handle sizing.
+      // No specific min/max needed here if w-full/h-full fill parent correctly.
+    };
 
 
   return (
@@ -244,10 +260,10 @@ export default function HomePage(): ReactElement {
             <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto">
               {previewUrl ? (
                 <div 
-                    className="w-full h-full flex items-center justify-center"
+                    className="w-full flex items-center justify-center" // Removed h-full, flex-grow will handle height
                     style={{ 
                         overflow: iframeDimensions.isFixed ? 'auto' : 'hidden', 
-                        flexGrow: 1 
+                        flexGrow: 1 // This makes the wrapper div take available space in CardContent
                     }}
                 >
                     <iframe
@@ -260,12 +276,9 @@ export default function HomePage(): ReactElement {
                         style={{
                             border: '1px solid hsl(var(--border))',
                             borderRadius: 'var(--radius)',
-                            minWidth: iframeDimensions.isFixed ? iframeDimensions.width : '100%',
-                            minHeight: iframeDimensions.isFixed ? iframeDimensions.height : '100%',
-                            maxWidth: iframeDimensions.isFixed ? iframeDimensions.width : '100%',
-                            maxHeight: iframeDimensions.isFixed ? iframeDimensions.height : '100%',
+                            ...iframeDynamicStyles // Apply dynamic sizing styles
                         }}
-                        className={`${iframeDimensions.isFixed ? '' : 'w-full h-full flex-grow'}`}
+                        className={cn(iframeDimensions.isFixed ? '' : 'w-full h-full')} // Use w-full h-full for auto, no flex-grow here
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
                         onError={(e) => {
                             console.error("Iframe loading error:", e);
@@ -353,3 +366,4 @@ export default function HomePage(): ReactElement {
     </div>
   );
 }
+
