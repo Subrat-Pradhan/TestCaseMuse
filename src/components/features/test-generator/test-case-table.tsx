@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Dispatch, SetStateAction } from 'react';
@@ -36,7 +37,7 @@ export function TestCaseTable({
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-        <h2 className="text-2xl font-semibold tracking-tight">Generated Test Cases</h2>
+        <h2 className="text-2xl font-semibold tracking-tight" id="test-cases-heading">Generated Test Cases</h2>
         <div className="flex gap-2">
           <Button onClick={onAdd} variant="outline">
             <PlusCircle className="mr-2 h-4 w-4" /> Add Test Case
@@ -53,6 +54,9 @@ export function TestCaseTable({
           )}
         </div>
       </div>
+      <p className="text-sm text-muted-foreground">
+        Below the preview, generated test cases will be listed, each with a unique ID, title, description, and step-by-step validation. Use the 'Add Test Case' button to create a new one or export the existing test cases as CSV or JSON.
+      </p>
       {testCases.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
           <div 
