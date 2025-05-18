@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, useEffect } from 'react';
 import type { TestCase } from '@/types/test-case';
 import { UrlInputForm } from '@/components/features/test-generator/url-input-form';
 import { TestCaseTable } from '@/components/features/test-generator/test-case-table';
@@ -10,8 +10,11 @@ import { EditTestCaseDialog } from '@/components/features/test-generator/edit-te
 import { exportToCSV, exportToJSON } from '@/lib/export-utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Terminal, Eye } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Terminal, Eye, Copy as CopyIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 export default function HomePage(): ReactElement {
   const [testCases, setTestCases] = useState<TestCase[]>([]);
@@ -22,6 +25,7 @@ export default function HomePage(): ReactElement {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [testCaseToEdit, setTestCaseToEdit] = useState<TestCase | null>(null);
+  const { toast } = useToast();
 
   const handleAddTestCase = (newTestCase: TestCase) => {
     setTestCases(prev => [...prev, newTestCase]);
@@ -49,6 +53,34 @@ export default function HomePage(): ReactElement {
     exportToJSON(testCases);
   };
 
+  const handleCopyPreviewUrl = async () => {
+    if (previewUrl) {
+      try {
+        await navigator.clipboard.writeText(previewUrl);
+        toast({
+          title: "URL Copied!",
+          description: "The preview URL has been copied to your clipboard.",
+        });
+      } catch (err) {
+        console.error("Failed to copy URL: ", err);
+        toast({
+          title: "Copy Failed",
+          description: "Could not copy the URL to your clipboard.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Effect to clear error if previewUrl becomes valid or is cleared by user
+  useEffect(() => {
+    if (previewUrl && error?.includes("Could not load preview")) {
+        // Basic check, might need to be more sophisticated if there are other errors
+        setError(null);
+    }
+  }, [previewUrl, error]);
+
+
   return (
     <div className="container mx-auto p-4 md:p-8">
       <div className="flex flex-col lg:flex-row gap-8">
@@ -62,10 +94,11 @@ export default function HomePage(): ReactElement {
               Generate Test Cases with AI
             </h1>
             <p className="text-muted-foreground mb-6">
-              Enter a URL to preview the web application on the right.
-              Our AI will generate test cases based on the URL currently in this input field.
-              If you navigate within the preview to a different page, you'll need to
-              manually update the URL in this field to target that new page for test generation.
+              Enter a URL below to preview the web application on the right.
+              Our AI will generate test cases based on the URL currently in *this* input field.
+              You can navigate within the preview iframe; if you want to generate tests for a different page
+              you've navigated to in the preview, update the URL in the preview panel or copy it from there
+              and paste it into this input field.
             </p>
             <UrlInputForm
               setTestCases={setTestCases}
@@ -84,7 +117,7 @@ export default function HomePage(): ReactElement {
           </section>
 
           <section aria-labelledby="test-cases-heading">
-            {isLoading && !previewUrl ? ( // Show skeleton only if not loading preview for the first time
+            {isLoading && testCases.length === 0 ? ( 
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Skeleton className="h-8 w-1/3" />
@@ -117,22 +150,38 @@ export default function HomePage(): ReactElement {
                 <Eye className="mr-2 h-6 w-6 text-primary" />
                 Website Preview
               </CardTitle>
-              <CardDescription>
-                {previewUrl ? `Displaying: ${previewUrl}` : "Enter a URL to see a preview."}
-              </CardDescription>
+              {previewUrl ? (
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    type="url"
+                    value={previewUrl}
+                    onChange={(e) => setPreviewUrl(e.target.value)}
+                    placeholder="Enter URL to preview"
+                    className="text-sm"
+                    aria-label="Preview URL"
+                  />
+                  <Button variant="outline" size="icon" onClick={handleCopyPreviewUrl} aria-label="Copy preview URL">
+                    <CopyIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <CardDescription>
+                  Enter a URL in the form on the left to see a preview.
+                </CardDescription>
+              )}
             </CardHeader>
-            <CardContent className="h-[600px] lg:h-[calc(100vh-16rem)]"> {/* Adjusted height */}
+            <CardContent className="h-[600px] lg:h-[calc(100vh-20rem)]"> {/* Adjusted height for header changes */}
               {previewUrl ? (
                 <iframe
-                  id="website-preview-iframe" // Added an ID for potential future reference, though not used for URL capture here
+                  id="website-preview-iframe"
                   src={previewUrl}
                   title="Website Preview"
                   className="w-full h-full border rounded-md"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups" // Security for iframe
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" 
                   onError={(e) => {
                     console.error("Iframe loading error:", e);
-                    setError("Could not load preview. The site might block embedding, or the URL is invalid/inaccessible.");
-                    setPreviewUrl(null); // Clear preview on error
+                    setError("Could not load preview. The site might block embedding (X-Frame-Options), or the URL is invalid/inaccessible, or it might be a network issue.");
+                    // Do not clear previewUrl here, let user see the problematic URL and edit it.
                   }}
                 />
               ) : (
