@@ -55,18 +55,17 @@ export default function HomePage(): ReactElement {
     setIsLoading(true);
     setError(null);
     if (!append) {
-      setTestCases([]); // Clear previous test cases only if not appending
+      setTestCases([]); 
     }
-    setPreviewUrl(url); // Update preview URL
-    setUrlForForm(url); // Keep form in sync
+    setPreviewUrl(url); 
+    setUrlForForm(url); 
 
     try {
       const result: GenerateTestCasesFromUrlOutput = await generateTestCasesFromUrl({ url });
       if (result.testCases && result.testCases.length > 0) {
-        // Ensure unique IDs before setting state
         const uniqueTestCases = result.testCases.map(tc => ({
           ...tc,
-          id: crypto.randomUUID() // Assign new UUID
+          id: crypto.randomUUID() 
         })) as TestCase[];
         
         setTestCases(prev => append ? [...prev, ...uniqueTestCases] : uniqueTestCases);
@@ -98,7 +97,7 @@ export default function HomePage(): ReactElement {
   };
 
   const handleAddTestCase = (newTestCase: TestCase) => {
-    setTestCases(prev => [...prev, newTestCase]);
+    setTestCases(prev => [...prev, { ...newTestCase, id: crypto.randomUUID() }]);
   };
 
   const handleEditTestCase = (testCase: TestCase) => {
@@ -143,7 +142,6 @@ export default function HomePage(): ReactElement {
   };
   
   useEffect(() => {
-    // Clear iframe error if previewUrl changes (e.g. user types a new one in main input or preview input)
     if (previewUrl && error?.includes("Could not load preview")) {
         setError(null); 
     }
@@ -166,7 +164,7 @@ export default function HomePage(): ReactElement {
       maxHeight: iframeDimensions.height,
     }
   : {
-      // For auto/responsive mode, CSS classes (w-full, h-full) handle sizing.
+      flexGrow: 1 // For auto mode, iframe should grow if its parent is flex
     };
 
 
@@ -235,7 +233,7 @@ export default function HomePage(): ReactElement {
                     onChange={(e) => {
                         const newUrl = e.target.value;
                         setPreviewUrl(newUrl);
-                        setUrlForForm(newUrl); // Keep form in sync
+                        setUrlForForm(newUrl); 
                         if (error?.includes("Could not load preview")) setError(null);
                     }}
                     placeholder="Enter URL to preview"
@@ -262,10 +260,12 @@ export default function HomePage(): ReactElement {
             <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto">
               {previewUrl ? (
                 <div 
-                    className="w-full flex items-center justify-center"
+                    className="w-full" // Removed centering classes, relying on flexGrow style for height
                     style={{ 
-                        overflow: iframeDimensions.isFixed ? 'auto' : 'hidden', 
-                        flexGrow: 1 
+                        overflow: iframeDimensions.isFixed ? 'auto' : undefined, 
+                        flexGrow: 1,
+                        display: 'flex', // Make this div a flex container for the iframe
+                        flexDirection: 'column', // Stack children vertically (iframe)
                     }}
                 >
                     <iframe
@@ -280,7 +280,9 @@ export default function HomePage(): ReactElement {
                             borderRadius: 'var(--radius)',
                             ...iframeDynamicStyles 
                         }}
-                        className={cn(iframeDimensions.isFixed ? '' : 'w-full h-full')} 
+                        className={cn(
+                            iframeDimensions.isFixed ? '' : 'w-full h-full' 
+                        )} 
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
                         onError={(e) => {
                             console.error("Iframe loading error:", e);
