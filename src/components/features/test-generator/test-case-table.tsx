@@ -64,7 +64,7 @@ export function TestCaseTable({
       <p className="text-sm text-muted-foreground">
        Below the preview, generated test cases will be listed, each with a unique ID, title, description, and step-by-step validation. Use the 'Add Test Case' button to create a new one or export the existing test cases as CSV or JSON.
       </p>
-      {testCases.length === 0 && !isLoading ? ( // Added !isLoading here to prevent showing "No test cases" during initial load
+      {testCases.length === 0 && !isLoading ? ( 
         <div className="flex flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
           <div 
             className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary"
@@ -100,7 +100,7 @@ export function TestCaseTable({
                 {testCases.map((tc) => (
                   <TableRow key={tc.id}>
                     <TableCell className="font-medium">
-                      <Badge variant="secondary">{tc.id.substring(0,6)}...</Badge>
+                      <Badge variant="secondary">{tc.id}</Badge>
                     </TableCell>
                     <TableCell>{tc.title}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{tc.description}</TableCell>
@@ -130,13 +130,13 @@ export function TestCaseTable({
             </Table>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
-          {testCases.length > 0 && (
+          { (
             <div className="mt-4 flex justify-center">
               <Button 
                 onClick={onGenerateMore} 
                 variant="outline" 
                 disabled={isLoading || !canGenerateMore}
-                title={!canGenerateMore ? "Preview a URL and generate initial tests first" : "Generate more test cases for the current preview URL"}
+                title={!canGenerateMore ? "Preview a URL first" : "Generate more test cases for the current preview URL"}
               >
                 <WandSparkles className="mr-2 h-4 w-4" />
                 Generate More for Current Preview
@@ -148,3 +148,4 @@ export function TestCaseTable({
     </div>
   );
 }
+

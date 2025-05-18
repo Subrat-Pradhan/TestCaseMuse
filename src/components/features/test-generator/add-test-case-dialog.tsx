@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -38,7 +39,7 @@ type TestCaseFormValues = z.infer<typeof testCaseSchema>;
 interface AddTestCaseDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddTestCase: (newTestCase: TestCase) => void;
+  onAddTestCase: (newTestCaseData: Omit<TestCase, 'id'>) => void;
 }
 
 export function AddTestCaseDialog({ isOpen, onOpenChange, onAddTestCase }: AddTestCaseDialogProps) {
@@ -53,14 +54,13 @@ export function AddTestCaseDialog({ isOpen, onOpenChange, onAddTestCase }: AddTe
   });
 
   const handleSubmit = (values: TestCaseFormValues) => {
-    const newTestCase: TestCase = {
-      id: crypto.randomUUID(), // Generate client-side ID
+    const newTestCaseData: Omit<TestCase, 'id'> = {
       title: values.title,
       description: values.description,
       steps: values.steps.split('\n').map(s => s.trim()).filter(s => s.length > 0),
       expectedResult: values.expectedResult,
     };
-    onAddTestCase(newTestCase);
+    onAddTestCase(newTestCaseData);
     form.reset();
     onOpenChange(false);
   };
@@ -153,3 +153,4 @@ export function AddTestCaseDialog({ isOpen, onOpenChange, onAddTestCase }: AddTe
     </Dialog>
   );
 }
+

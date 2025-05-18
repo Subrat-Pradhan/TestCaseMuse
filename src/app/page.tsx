@@ -39,6 +39,7 @@ export default function HomePage(): ReactElement {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [urlForForm, setUrlForForm] = useState<string | null>(null);
   const [selectedResolution, setSelectedResolution] = useState<string>("auto");
+  const [testCaseCounter, setTestCaseCounter] = useState<number>(1);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
@@ -47,15 +48,17 @@ export default function HomePage(): ReactElement {
 
   const handleSetPreviewOnly = (url: string) => {
     setPreviewUrl(url);
-    setUrlForForm(url); // Keep form in sync
+    setUrlForForm(url); 
     if (error?.includes("Could not load preview")) setError(null);
   };
 
   const handleGenerateTests = async (url: string, append: boolean = false) => {
     setIsLoading(true);
     setError(null);
+    
+    let currentCounter = append ? testCaseCounter : 1;
     if (!append) {
-      setTestCases([]); 
+      setTestCases([]);
     }
     setPreviewUrl(url); 
     setUrlForForm(url); 
@@ -63,15 +66,17 @@ export default function HomePage(): ReactElement {
     try {
       const result: GenerateTestCasesFromUrlOutput = await generateTestCasesFromUrl({ url });
       if (result.testCases && result.testCases.length > 0) {
-        const uniqueTestCases = result.testCases.map(tc => ({
-          ...tc,
-          id: crypto.randomUUID() 
-        })) as TestCase[];
+        const newTestCases = result.testCases.map(tc => {
+          const formattedId = `TC${String(currentCounter).padStart(3, '0')}`;
+          currentCounter++;
+          return { ...tc, id: formattedId };
+        }) as TestCase[];
         
-        setTestCases(prev => append ? [...prev, ...uniqueTestCases] : uniqueTestCases);
+        setTestCases(prev => append ? [...prev, ...newTestCases] : newTestCases);
+        setTestCaseCounter(currentCounter);
         toast({
           title: "Success!",
-          description: `${uniqueTestCases.length} test cases ${append ? 'added' : 'generated'}.`,
+          description: `${newTestCases.length} test cases ${append ? 'added' : 'generated'}.`,
           className: "bg-accent text-accent-foreground",
         });
       } else {
@@ -96,8 +101,14 @@ export default function HomePage(): ReactElement {
     }
   };
 
-  const handleAddTestCase = (newTestCase: TestCase) => {
-    setTestCases(prev => [...prev, { ...newTestCase, id: crypto.randomUUID() }]);
+  const handleAddTestCase = (newTestCaseData: Omit<TestCase, 'id'>) => {
+    const formattedId = `TC${String(testCaseCounter).padStart(3, '0')}`;
+    const newTestCaseWithId: TestCase = {
+      ...newTestCaseData,
+      id: formattedId,
+    };
+    setTestCases(prev => [...prev, newTestCaseWithId]);
+    setTestCaseCounter(prevCounter => prevCounter + 1);
   };
 
   const handleEditTestCase = (testCase: TestCase) => {
@@ -164,7 +175,7 @@ export default function HomePage(): ReactElement {
       maxHeight: iframeDimensions.height,
     }
   : {
-      flexGrow: 1 // For auto mode, iframe should grow if its parent is flex
+      flexGrow: 1 
     };
 
 
@@ -180,7 +191,7 @@ export default function HomePage(): ReactElement {
             Generate Test Cases with AI
           </h1>
           <p className="text-muted-foreground mb-6">
-            Provide the URL of the web application you want to test. Use "Preview" to load the site below, or "Generate Tests" to preview and create test cases. If you navigate within the preview, update the URL in this field or the preview URL field to generate tests for the new page.
+           Provide the URL of the web application you want to test. Use "Preview" to load the site below, or "Generate Tests" to preview and create test cases. If you navigate within the preview, update the URL in this field or the preview URL field to generate tests for the new page.
           </p>
           <UrlInputForm
             onGenerateTests={(url) => handleGenerateTests(url, false)}
@@ -260,12 +271,12 @@ export default function HomePage(): ReactElement {
             <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto">
               {previewUrl ? (
                 <div 
-                    className="w-full" // Removed centering classes, relying on flexGrow style for height
+                    className="w-full"
                     style={{ 
                         overflow: iframeDimensions.isFixed ? 'auto' : undefined, 
+                        display: 'flex', 
+                        flexDirection: 'column', 
                         flexGrow: 1,
-                        display: 'flex', // Make this div a flex container for the iframe
-                        flexDirection: 'column', // Stack children vertically (iframe)
                     }}
                 >
                     <iframe
@@ -278,10 +289,11 @@ export default function HomePage(): ReactElement {
                         style={{
                             border: '1px solid hsl(var(--border))',
                             borderRadius: 'var(--radius)',
-                            ...iframeDynamicStyles 
+                            ...iframeDynamicStyles,
+                            ...( !iframeDimensions.isFixed && { flexGrow: 1 } )
                         }}
                         className={cn(
-                            iframeDimensions.isFixed ? '' : 'w-full h-full' 
+                            !iframeDimensions.isFixed && 'w-full h-full' 
                         )} 
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
                         onError={(e) => {
@@ -347,7 +359,7 @@ export default function HomePage(): ReactElement {
                 }
               }}
               isLoading={isLoading}
-              canGenerateMore={!!previewUrl && testCases.length > 0}
+              canGenerateMore={!!previewUrl}
             />
           )}
         </section>
