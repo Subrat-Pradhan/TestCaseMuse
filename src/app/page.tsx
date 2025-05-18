@@ -13,9 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor } from 'lucide-react';
+import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor, WandSparkles } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { generateTestCasesFromUrl, type GenerateTestCasesFromUrlOutput } from '@/ai/flows/generate-test-cases-from-url';
 
 const resolutions = [
   { label: "Auto (Responsive)", value: "auto", type: "Responsive", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
@@ -26,6 +27,7 @@ const resolutions = [
   { label: "375x812 (iPhone X/XS)", value: "375x812", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
   { label: "414x896 (iPhone XR/11 Max)", value: "414x896", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
   { label: "360x780 (Tall Android)", value: "360x780", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
+  { label: "1080x2400 (Modern Android)", value: "1080x2400", type: "Mobile", icon: <Smartphone className="h-4 w-4 mr-2 opacity-50" /> },
 ];
 
 
@@ -34,12 +36,59 @@ export default function HomePage(): ReactElement {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [urlForForm, setUrlForForm] = useState<string | null>(null);
   const [selectedResolution, setSelectedResolution] = useState<string>("auto");
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [testCaseToEdit, setTestCaseToEdit] = useState<TestCase | null>(null);
   const { toast } = useToast();
+
+  const handleSetPreviewOnly = (url: string) => {
+    setPreviewUrl(url);
+    setUrlForForm(url); // Keep form in sync
+    if (error?.includes("Could not load preview")) setError(null);
+  };
+
+  const handleGenerateTests = async (url: string, append: boolean = false) => {
+    setIsLoading(true);
+    setError(null);
+    if (!append) {
+      setTestCases([]); // Clear previous test cases only if not appending
+    }
+    setPreviewUrl(url); // Update preview URL
+    setUrlForForm(url); // Keep form in sync
+
+    try {
+      const result: GenerateTestCasesFromUrlOutput = await generateTestCasesFromUrl({ url });
+      if (result.testCases && result.testCases.length > 0) {
+        setTestCases(prev => append ? [...prev, ...(result.testCases as TestCase[])] : (result.testCases as TestCase[]));
+        toast({
+          title: "Success!",
+          description: `${result.testCases.length} test cases ${append ? 'added' : 'generated'}.`,
+          className: "bg-accent text-accent-foreground",
+        });
+      } else {
+        toast({
+          title: append ? "No more test cases" : "No test cases generated.",
+          description: "The AI couldn't find any new test cases for this URL, or the URL might be inaccessible for AI analysis.",
+          variant: "default",
+        });
+        if (!append) setTestCases([]);
+      }
+    } catch (err) {
+      console.error("Error generating test cases:", err);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+      setError(`Failed to generate test cases: ${errorMessage}`);
+      toast({
+        title: "Error Generating Tests",
+        description: `Failed to generate test cases. ${errorMessage}. The preview might still work.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleAddTestCase = (newTestCase: TestCase) => {
     setTestCases(prev => [...prev, newTestCase]);
@@ -85,12 +134,14 @@ export default function HomePage(): ReactElement {
       }
     }
   };
-
+  
   useEffect(() => {
+    // Clear iframe error if previewUrl changes (e.g. user types a new one in main input or preview input)
     if (previewUrl && error?.includes("Could not load preview")) {
-        setError(null); // Clear iframe error if previewUrl changes (e.g. user types a new one)
+        setError(null); 
     }
-  }, [previewUrl]); // Only depend on previewUrl and error type
+  }, [previewUrl, error]);
+
 
   const iframeDimensions = (() => {
     if (selectedResolution === "auto" || !previewUrl) {
@@ -113,14 +164,13 @@ export default function HomePage(): ReactElement {
             Generate Test Cases with AI
           </h1>
           <p className="text-muted-foreground mb-6">
-            Provide the URL of the web application you want to test. Once entered, the application will be previewed below. If you navigate to a different page within the preview, update the URL in this field or the preview URL field accordingly.
+            Provide the URL of the web application you want to test. Use "Preview" to load the site below, or "Generate Tests" to preview and create test cases. If you navigate within the preview, update the URL in this field or the preview URL field to generate tests for the new page.
           </p>
           <UrlInputForm
-            setTestCases={setTestCases}
-            setIsLoading={setIsLoading}
-            setError={setError}
+            onGenerateTests={(url) => handleGenerateTests(url, false)}
+            onPreview={handleSetPreviewOnly}
             isLoading={isLoading}
-            setPreviewUrl={setPreviewUrl}
+            initialUrl={urlForForm}
           />
           {error && !error.startsWith("Could not load preview") && ( 
             <Alert variant="destructive" className="mt-4">
@@ -165,7 +215,9 @@ export default function HomePage(): ReactElement {
                     type="url"
                     value={previewUrl}
                     onChange={(e) => {
-                        setPreviewUrl(e.target.value);
+                        const newUrl = e.target.value;
+                        setPreviewUrl(newUrl);
+                        setUrlForForm(newUrl); // Keep form in sync
                         if (error?.includes("Could not load preview")) setError(null);
                     }}
                     placeholder="Enter URL to preview"
@@ -178,7 +230,7 @@ export default function HomePage(): ReactElement {
                 </div>
               ) : (
                 <CardDescription className="mt-2">
-                  The panel below displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features.
+                 The panel below displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features. Any changes made within the iframe will be reflected here.
                 </CardDescription>
               )}
                {error && error.startsWith("Could not load preview") && (
@@ -200,6 +252,7 @@ export default function HomePage(): ReactElement {
                 >
                     <iframe
                         id="website-preview-iframe"
+                        key={previewUrl + selectedResolution} // Force re-render on URL or resolution change
                         src={previewUrl}
                         title="Website Preview"
                         width={iframeDimensions.isFixed ? iframeDimensions.width.replace('px', '') : "100%"}
@@ -219,7 +272,7 @@ export default function HomePage(): ReactElement {
                             setError("Could not load preview. The site might block embedding (X-Frame-Options), the URL is invalid/inaccessible, or it's a network issue.");
                         }}
                         onLoad={() => {
-                             if (error?.includes("Could not load preview")) setError(null); // Clear error on successful load
+                             if (error?.includes("Could not load preview")) setError(null); 
                         }}
                     />
                 </div>
@@ -265,6 +318,19 @@ export default function HomePage(): ReactElement {
               onDelete={handleDeleteTestCase}
               onExportCSV={handleExportCSV}
               onExportJSON={handleExportJSON}
+              onGenerateMore={() => {
+                if (previewUrl) {
+                  handleGenerateTests(previewUrl, true);
+                } else {
+                  toast({
+                    title: "No URL to use",
+                    description: "Please enter or preview a URL first before generating more test cases.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              isLoading={isLoading}
+              canGenerateMore={!!previewUrl && testCases.length > 0}
             />
           )}
         </section>
@@ -287,6 +353,3 @@ export default function HomePage(): ReactElement {
     </div>
   );
 }
-
-
-    
