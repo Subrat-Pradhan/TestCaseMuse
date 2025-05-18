@@ -3,17 +3,15 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { TestTubeDiagonal, LogIn, LogOut, UserCircle, LayoutDashboard } from 'lucide-react';
-import { useAuth } from '@/contexts/auth-context';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { TestTubeDiagonal } from 'lucide-react';
+// Removed: LogIn, LogOut, UserCircle, LayoutDashboard, useAuth, Button, Skeleton
 
 interface AppShellProps {
   children: ReactNode;
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { isAuthenticated, isLoading, logout, user } = useAuth();
+  // Removed: useAuth hook and related logic
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -26,33 +24,9 @@ export function AppShell({ children }: AppShellProps) {
             </span>
           </Link>
           
+          {/* Simplified navigation, auth-related buttons removed */}
           <nav className="flex items-center gap-2">
-            {isLoading ? (
-              <Skeleton className="h-8 w-24 rounded-md" />
-            ) : isAuthenticated ? (
-              <>
-                <Button variant="ghost" asChild>
-                  <Link href="/dashboard">
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Dashboard
-                  </Link>
-                </Button>
-                <span className="text-sm text-muted-foreground hidden sm:inline">
-                  Hi, {user?.displayName || user?.email?.split('@')[0]}
-                </span>
-                <Button variant="outline" size="sm" onClick={logout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <Button variant="default" size="sm" asChild>
-                <Link href="/login">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Login
-                </Link>
-              </Button>
-            )}
+            {/* Future navigation items can go here if needed */}
           </nav>
         </div>
       </header>
