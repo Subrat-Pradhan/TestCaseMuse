@@ -72,10 +72,8 @@ export default function HomePage(): ReactElement {
     }
   };
 
-  // Effect to clear error if previewUrl becomes valid or is cleared by user
   useEffect(() => {
     if (previewUrl && error?.includes("Could not load preview")) {
-        // Basic check, might need to be more sophisticated if there are other errors
         setError(null);
     }
   }, [previewUrl, error]);
@@ -84,63 +82,62 @@ export default function HomePage(): ReactElement {
   return (
     <div className="container mx-auto p-4 md:p-8">
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Left Column: Controls and Test Cases */}
-        <div className="lg:w-1/2 space-y-8">
-          <section
-            aria-labelledby="url-input-heading"
-            className="rounded-lg border bg-card text-card-foreground shadow-sm p-6"
-          >
-            <h1 id="url-input-heading" className="text-2xl font-semibold mb-4">
-              Generate Test Cases with AI
-            </h1>
-            <p className="text-muted-foreground mb-6">
-              Provide the URL of the web application you want to test. Once entered, the application will be previewed on the right. If you navigate to a different page within the preview, update the URL in this field accordingly.
-            </p>
-            <UrlInputForm
-              setTestCases={setTestCases}
-              setIsLoading={setIsLoading}
-              setError={setError}
-              isLoading={isLoading}
-              setPreviewUrl={setPreviewUrl}
-            />
-            {error && (
-              <Alert variant="destructive" className="mt-4">
-                <Terminal className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </section>
+        {/* Section 1: URL Input */}
+        <section
+          aria-labelledby="url-input-heading"
+          className="lg:w-1/3 flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm p-6"
+        >
+          <h1 id="url-input-heading" className="text-2xl font-semibold mb-4">
+            Generate Test Cases with AI
+          </h1>
+          <p className="text-muted-foreground mb-6">
+            Provide the URL of the web application you want to test. Once entered, the application will be previewed on the right. If you navigate to a different page within the preview, update the URL in this field accordingly.
+          </p>
+          <UrlInputForm
+            setTestCases={setTestCases}
+            setIsLoading={setIsLoading}
+            setError={setError}
+            isLoading={isLoading}
+            setPreviewUrl={setPreviewUrl}
+          />
+          {error && !error.startsWith("Could not load preview") && ( // Only show AI errors here
+            <Alert variant="destructive" className="mt-4">
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </section>
 
-          <section aria-labelledby="test-cases-heading">
-            {isLoading && testCases.length === 0 ? ( 
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Skeleton className="h-8 w-1/3" />
-                  <div className="flex gap-2">
-                    <Skeleton className="h-10 w-32" />
-                    <Skeleton className="h-10 w-32" />
-                    <Skeleton className="h-10 w-32" />
-                  </div>
+        {/* Section 2: Test Cases */}
+        <section aria-labelledby="test-cases-heading" className="lg:w-1/3 flex flex-col">
+          {isLoading && testCases.length === 0 ? ( 
+            <div className="space-y-4 p-1 flex-grow flex flex-col"> {/* Added padding for consistency and flex for skeleton */}
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-8 w-1/3" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-24" />
                 </div>
-                <Skeleton className="h-96 w-full" />
               </div>
-            ) : (
-              <TestCaseTable
-                testCases={testCases}
-                onAdd={() => setIsAddDialogOpen(true)}
-                onEdit={handleEditTestCase}
-                onDelete={handleDeleteTestCase}
-                onExportCSV={handleExportCSV}
-                onExportJSON={handleExportJSON}
-              />
-            )}
-          </section>
-        </div>
+              <Skeleton className="h-96 w-full flex-grow" /> {/* flex-grow for skeleton body */}
+            </div>
+          ) : (
+            <TestCaseTable
+              testCases={testCases}
+              onAdd={() => setIsAddDialogOpen(true)}
+              onEdit={handleEditTestCase}
+              onDelete={handleDeleteTestCase}
+              onExportCSV={handleExportCSV}
+              onExportJSON={handleExportJSON}
+            />
+          )}
+        </section>
 
-        {/* Right Column: Website Preview */}
-        <div className="lg:w-1/2">
-          <Card className="shadow-lg sticky top-20"> {/* Sticky for better UX on scroll */}
+        {/* Section 3: Website Preview */}
+        <div className="lg:w-1/3 flex flex-col">
+          <Card className="shadow-lg flex-grow flex flex-col">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Eye className="mr-2 h-6 w-6 text-primary" />
@@ -165,23 +162,29 @@ export default function HomePage(): ReactElement {
                   The right panel displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features. Any changes made within the iframe will be reflected here.
                 </CardDescription>
               )}
+               {error && error.startsWith("Could not load preview") && ( // Show iframe specific errors here
+                <Alert variant="destructive" className="mt-4">
+                  <Terminal className="h-4 w-4" />
+                  <AlertTitle>Preview Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
             </CardHeader>
-            <CardContent className="h-[600px] lg:h-[calc(100vh-20rem)]"> {/* Adjusted height for header changes */}
+            <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4"> {/* Adjusted padding */}
               {previewUrl ? (
                 <iframe
                   id="website-preview-iframe"
                   src={previewUrl}
                   title="Website Preview"
-                  className="w-full h-full border rounded-md"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" 
+                  className="w-full h-full border rounded-md flex-grow"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
                   onError={(e) => {
                     console.error("Iframe loading error:", e);
                     setError("Could not load preview. The site might block embedding (X-Frame-Options), or the URL is invalid/inaccessible, or it might be a network issue.");
-                    // Do not clear previewUrl here, let user see the problematic URL and edit it.
                   }}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full rounded-md border border-dashed text-center">
+                <div className="flex flex-col items-center justify-center h-full rounded-md border border-dashed text-center p-6">
                   <div
                     className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary"
                     aria-hidden="true"
