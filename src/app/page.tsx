@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor, WandSparkles, RotateCcw } from 'lucide-react';
+import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor, WandSparkles, RotateCcw, Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { generateTestCasesFromUrl, type GenerateTestCasesFromUrlOutput } from '@/ai/flows/generate-test-cases-from-url';
@@ -34,9 +34,11 @@ export default function HomePage(): ReactElement {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [urlForForm, setUrlForForm] = useState<string | null>(null); // Syncs with UrlInputForm's initialUrl
-  const [selectedResolution, setSelectedResolution] = useState<string>(resolutions[0].value); // Default to first resolution
+  const [urlForForm, setUrlForForm] = useState<string | null>(null);
+  const [selectedResolution, setSelectedResolution] = useState<string>(resolutions[0].value);
   const [testCaseCounter, setTestCaseCounter] = useState<number>(1);
+  const [analysisSummary, setAnalysisSummary] = useState<string | null>(null);
+
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
@@ -52,6 +54,9 @@ export default function HomePage(): ReactElement {
   const handleGenerateTests = async (url: string, append: boolean = false) => {
     setIsLoading(true);
     setError(null);
+    if (!append) {
+      setAnalysisSummary(null); // Clear previous summary for new generation
+    }
     
     let currentIdCounter = append ? testCaseCounter : 1;
     if (!append) {
@@ -62,6 +67,11 @@ export default function HomePage(): ReactElement {
 
     try {
       const result: GenerateTestCasesFromUrlOutput = await generateTestCasesFromUrl({ url });
+      
+      if (result.analysisSummary) {
+        setAnalysisSummary(result.analysisSummary);
+      }
+
       if (result.testCases && result.testCases.length > 0) {
         const newTestCases = result.testCases.map(tc => {
           const formattedId = `TC${String(currentIdCounter).padStart(3, '0')}`;
@@ -73,7 +83,7 @@ export default function HomePage(): ReactElement {
         setTestCaseCounter(currentIdCounter);
         toast({
           title: "Success!",
-          description: `${newTestCases.length} test cases ${append ? 'added' : 'generated'}.`,
+          description: `${newTestCases.length} test cases ${append ? 'added' : 'generated'}. ${result.analysisSummary ? 'Analysis summary also available.' : ''}`,
           className: "bg-accent text-accent-foreground",
         });
       } else {
@@ -155,9 +165,10 @@ export default function HomePage(): ReactElement {
     setUrlForForm(null); 
     setError(null);
     setTestCaseCounter(1);
+    setAnalysisSummary(null);
     toast({
       title: "Application Reset",
-      description: "All test cases, preview, and URL inputs have been cleared.",
+      description: "All test cases, preview, URL inputs, and analysis have been cleared.",
     });
   };
   
@@ -169,25 +180,23 @@ export default function HomePage(): ReactElement {
 
 
   const iframeDimensions = (() => {
-    if (!selectedResolution) { // Should always have a selected resolution now
+    if (!selectedResolution) {
       return { width: "0px", height: "0px", isFixed: false }; 
     }
     const [width, height] = selectedResolution.split('x').map(Number);
     return { width: `${width}px`, height: `${height}px`, isFixed: true };
   })();
 
-  // Styles for the iframe itself
   const iframeDynamicStyles = {
-    minWidth: iframeDimensions.isFixed ? iframeDimensions.width : '100%',
-    minHeight: iframeDimensions.isFixed ? iframeDimensions.height : '100%',
-    maxWidth: iframeDimensions.isFixed ? iframeDimensions.width : '100%',
-    maxHeight: iframeDimensions.isFixed ? iframeDimensions.height : '100%',
+    minWidth: iframeDimensions.width,
+    minHeight: iframeDimensions.height,
+    maxWidth: iframeDimensions.width,
+    maxHeight: iframeDimensions.height,
     border: '1px solid hsl(var(--border))',
     borderRadius: 'var(--radius)',
-    flexGrow: iframeDimensions.isFixed ? 0 : 1, // Allow flex grow only if not fixed
+    flexShrink: 0, // Prevent iframe from shrinking if container is too small
   };
   
-  // Key for iframe to force re-render on URL change or reset
   const iframeKey = previewUrl ? `${previewUrl}-${selectedResolution}` : `empty-preview-${selectedResolution}`;
 
   return (
@@ -207,7 +216,7 @@ export default function HomePage(): ReactElement {
             </Button>
           </div>
           <p className="text-muted-foreground mb-6">
-            Provide the URL of the web application you want to test. Use "Preview" to load the site below, or "Generate Tests" to preview and create test cases. If you navigate within the preview, update the URL in this field or the preview URL field to generate tests for the new page.
+           Provide the URL of the web application you want to test. Use "Preview" to load the site below, or "Generate Tests" to preview and create test cases. If you navigate within the preview, update the URL in this field or the preview URL field to generate tests for the new page.
           </p>
           <UrlInputForm
             onGenerateTests={(url) => handleGenerateTests(url, false)}
@@ -226,7 +235,7 @@ export default function HomePage(): ReactElement {
 
         {/* Section 2: Website Preview */}
         <section aria-labelledby="website-preview-heading" className="flex flex-col">
-          <Card className="shadow-lg flex-grow flex flex-col min-h-[600px]">
+          <Card className="shadow-lg flex-grow flex flex-col min-h-[600px]"> {/* Ensure card has min height */}
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <CardTitle id="website-preview-heading" className="flex items-center">
@@ -260,7 +269,6 @@ export default function HomePage(): ReactElement {
                     onChange={(e) => {
                         const newUrl = e.target.value;
                         setPreviewUrl(newUrl);
-                        // Also update the main form's URL if user types here
                         setUrlForForm(newUrl); 
                         if (error?.includes("Could not load preview")) setError(null);
                     }}
@@ -285,17 +293,18 @@ export default function HomePage(): ReactElement {
                 </Alert>
               )}
             </CardHeader>
-            <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto">
+            <CardContent 
+              className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto items-center justify-center" // Center content
+            >
               {previewUrl ? (
                 <div 
-                    className="w-full"
+                    className="w-full" // Wrapper to control centering
                     style={{ 
-                        overflow: 'auto', 
                         display: 'flex', 
-                        flexDirection: 'column',
                         justifyContent: 'center', 
                         alignItems: 'center', 
                         flexGrow: 1, 
+                        overflow: 'auto', // Allow scrolling for the wrapper if iframe is too big
                     }}
                 >
                     <iframe
@@ -304,7 +313,6 @@ export default function HomePage(): ReactElement {
                         src={previewUrl}
                         title="Website Preview"
                         style={iframeDynamicStyles}
-                        className={!iframeDimensions.isFixed ? 'w-full h-full' : ''} // Use classes for responsive fill
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
                         onError={(e) => {
                             console.error("Iframe loading error:", e);
@@ -335,9 +343,36 @@ export default function HomePage(): ReactElement {
           </Card>
         </section>
 
-        {/* Section 3: Test Cases */}
+        {/* Section 3: AI Analysis Summary */}
+        {(isLoading && !analysisSummary) && (
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <WandSparkles className="mr-2 h-6 w-6 text-primary" />
+                AI Analysis Insights
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-6 w-1/4 mb-2" />
+              <Skeleton className="h-4 w-full mb-1" />
+              <Skeleton className="h-4 w-full mb-1" />
+              <Skeleton className="h-4 w-3/4" />
+            </CardContent>
+          </Card>
+        )}
+        {analysisSummary && !isLoading && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>AI Analysis Insights</AlertTitle>
+            <AlertDescription>
+              <pre className="whitespace-pre-wrap font-sans text-sm">{analysisSummary}</pre>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Section 4: Test Cases */}
         <section aria-labelledby="test-cases-heading" className="flex flex-col">
-          {isLoading && testCases.length === 0 ? ( 
+          {isLoading && testCases.length === 0 && !analysisSummary ? ( 
             <div className="space-y-4 p-1 flex-grow flex flex-col">
               <div className="flex justify-between items-center">
                 <Skeleton className="h-8 w-1/3" />
@@ -392,3 +427,4 @@ export default function HomePage(): ReactElement {
     </div>
   );
 }
+
