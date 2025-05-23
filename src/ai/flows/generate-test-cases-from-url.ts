@@ -37,23 +37,40 @@ const prompt = ai.definePrompt({
   name: 'generateTestCasesFromUrlPrompt',
   input: {schema: GenerateTestCasesFromUrlInputSchema},
   output: {schema: GenerateTestCasesFromUrlOutputSchema},
-  prompt: `You are an expert test case generator for web applications. Your task is to analyze the webpage content at the given URL: {{{url}}}
+  prompt: `You are an expert system for generating web application test cases. Your task is to analyze the webpage content at the given URL: {{{url}}}
 
-Focus on the following:
-1.  **Identify Interactive Elements**: Scan the page for all interactive elements such as buttons, links, input fields, forms, dropdown menus, checkboxes, radio buttons, etc.
-2.  **Actions & Interactions**: For each interactive element, determine the primary actions a user can perform (e.g., click, submit, type text, select option).
-3.  **Test Case Generation**:
-    *   For buttons and clickable elements (like links that act like buttons): Generate test cases that verify their presence and the immediate outcome of clicking them (e.g., "Verify 'Submit' button navigates to confirmation page", "Check 'Login' button attempts authentication").
-    *   For forms and input fields: Generate test cases for submitting the form with valid/invalid data (if inferable), or simply verifying the presence of key input fields.
-    *   For other UI elements: Generate test cases to verify their visibility and, if applicable, their default state.
+Follow this multi-step process:
 
-Your generated test cases should be comprehensive and actionable. Each test case must include:
--   A clear 'title'.
--   A 'description' of what is being tested.
--   A list of 'steps' to perform the test.
--   The 'expectedResult' of performing those steps.
+1.  **Element Detection Phase**:
+    *   Thoroughly scan the page content accessible from the URL.
+    *   Identify all significant interactive UI elements. This includes, but is not limited to:
+        *   Buttons (e.g., <button>, <input type="button">, <input type="submit">)
+        *   Links that function as interactive controls (e.g., <a> tags styled as buttons or triggering actions)
+        *   Input fields (text, email, password, number, etc.)
+        *   Selection elements (dropdowns/selects, radio buttons, checkboxes)
+        *   Forms and their constituent parts.
+    *   For each detected element, note its type (e.g., 'button', 'text input'), visible text/label, and any available identifiers (ID, name, classes that might be relevant for testing).
 
-The test cases must be returned as a JSON array, conforming to the provided output schema. Prioritize functionality directly observable from the page content.
+2.  **Interaction Analysis Phase**:
+    *   For each interactive element identified in the previous phase, determine the primary user actions that can be performed on it. Focus heavily on:
+        *   **Click actions**: What happens or is expected to happen when a button or clickable link is pressed? (e.g., navigation, form submission, modal display, data update).
+        *   **Form submissions**: What is the purpose of any forms on the page?
+        *   **Input validation (basic)**: For input fields, consider simple presence checks.
+    *   Think about the logical sequence of interactions if applicable (e.g., filling a field then clicking submit).
+
+3.  **Test Scenario Generation Phase**:
+    *   Based on the detected elements and their analyzed interactions, generate specific, actionable test cases.
+    *   Prioritize test cases that verify:
+        *   **Presence and Visibility**: "Verify '{Element Label}' {element type} is present on the page."
+        *   **Click Actions**: "Verify clicking the '{Button Label}' button {expected action, e.g., navigates to X, submits the form, opens Y dialog}."
+        *   **Basic Form Interactions**: "Verify the '{Form Name/Purpose}' form contains an input field for '{Field Label}'."
+    *   Each test case MUST include:
+        *   A clear 'title'.
+        *   A 'description' of what is being tested and why.
+        *   A list of 'steps' to perform the test (e.g., "1. Navigate to the page. 2. Locate the '{Element Label}' button. 3. Click the '{Element Label}' button.").
+        *   The 'expectedResult' of performing those steps (e.g., "User is redirected to the '/confirmation' page.", "The '{Field Label}' input field is visible.").
+
+The test cases must be returned as a JSON array, conforming to the provided output schema. Be comprehensive and focus on the most valuable test scenarios derivable from the page's content.
   `,
 });
 
@@ -69,4 +86,3 @@ const generateTestCasesFromUrlFlow = ai.defineFlow(
     return output || { testCases: [] };
   }
 );
-
