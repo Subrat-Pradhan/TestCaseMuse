@@ -17,12 +17,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-// import { useToast } from '@/hooks/use-toast'; // Not used in this component directly
-// import { generateTestCasesFromUrl, type GenerateTestCasesFromUrlOutput } from '@/ai/flows/generate-test-cases-from-url'; // Not used
-// import type { TestCase } from '@/types/test-case'; // Not used
 
 const formSchema = z.object({
-  url: z.string().url({ message: "Please enter a valid URL." }),
+  url: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")), // Allow empty string for reset
 });
 
 type UrlFormValues = z.infer<typeof formSchema>;
@@ -42,23 +39,28 @@ export function UrlInputForm({ onGenerateTests, onPreview, isLoading, initialUrl
     },
   });
 
-  // Update form if initialUrl changes (e.g. from preview input)
   React.useEffect(() => {
-    if (initialUrl && initialUrl !== form.getValues("url")) {
-      form.setValue("url", initialUrl);
+    const currentFormUrl = form.getValues("url");
+    const newUrlToSet = initialUrl || "";
+    if (newUrlToSet !== currentFormUrl) {
+      form.setValue("url", newUrlToSet);
     }
   }, [initialUrl, form]);
 
   const handlePreviewClick = async () => {
-    const isValid = await form.trigger("url"); // Validate URL before previewing
+    const isValid = await form.trigger("url");
     if (isValid) {
         const url = form.getValues("url");
-        if (url) onPreview(url);
+        if (url) { // Only call onPreview if URL is not empty
+            onPreview(url);
+        }
     }
   };
 
   async function handleSubmit(values: UrlFormValues) {
-    await onGenerateTests(values.url);
+    if (values.url) { // Only generate if URL is not empty
+        await onGenerateTests(values.url);
+    }
   }
 
   return (
@@ -82,11 +84,11 @@ export function UrlInputForm({ onGenerateTests, onPreview, isLoading, initialUrl
                   />
                 </FormControl>
                 <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={handlePreviewClick} disabled={isLoading} className="w-full sm:w-auto">
+                    <Button type="button" variant="outline" onClick={handlePreviewClick} disabled={isLoading || !form.getValues("url")} className="w-full sm:w-auto">
                         <Eye className="mr-2 h-4 w-4" />
                         Preview
                     </Button>
-                    <Button type="submit" disabled={isLoading} className="min-w-[150px] w-full sm:w-auto">
+                    <Button type="submit" disabled={isLoading || !form.getValues("url")} className="min-w-[150px] w-full sm:w-auto">
                     {isLoading ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -104,4 +106,3 @@ export function UrlInputForm({ onGenerateTests, onPreview, isLoading, initialUrl
     </Form>
   );
 }
-

@@ -13,11 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor, WandSparkles } from 'lucide-react';
+import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor, WandSparkles, RotateCcw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { generateTestCasesFromUrl, type GenerateTestCasesFromUrlOutput } from '@/ai/flows/generate-test-cases-from-url';
-import { cn } from '@/lib/utils';
 
 const resolutions = [
   { label: "1366x768 (HD)", value: "1366x768", type: "Desktop", icon: <Monitor className="h-4 w-4 mr-2 opacity-50" /> },
@@ -35,8 +34,8 @@ export default function HomePage(): ReactElement {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [urlForForm, setUrlForForm] = useState<string | null>(null);
-  const [selectedResolution, setSelectedResolution] = useState<string>("1366x768");
+  const [urlForForm, setUrlForForm] = useState<string | null>(null); // Syncs with UrlInputForm's initialUrl
+  const [selectedResolution, setSelectedResolution] = useState<string>(resolutions[0].value); // Default to first resolution
   const [testCaseCounter, setTestCaseCounter] = useState<number>(1);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
@@ -54,9 +53,9 @@ export default function HomePage(): ReactElement {
     setIsLoading(true);
     setError(null);
     
-    let currentCounter = append ? testCaseCounter : 1;
+    let currentIdCounter = append ? testCaseCounter : 1;
     if (!append) {
-      setTestCases([]); // Clear existing test cases only if not appending
+      setTestCases([]); 
     }
     setPreviewUrl(url); 
     setUrlForForm(url); 
@@ -65,13 +64,13 @@ export default function HomePage(): ReactElement {
       const result: GenerateTestCasesFromUrlOutput = await generateTestCasesFromUrl({ url });
       if (result.testCases && result.testCases.length > 0) {
         const newTestCases = result.testCases.map(tc => {
-          const formattedId = `TC${String(currentCounter).padStart(3, '0')}`;
-          currentCounter++;
+          const formattedId = `TC${String(currentIdCounter).padStart(3, '0')}`;
+          currentIdCounter++;
           return { ...tc, id: formattedId };
         });
         
         setTestCases(prev => append ? [...prev, ...newTestCases] : newTestCases);
-        setTestCaseCounter(currentCounter); // Update counter after processing all new TCs
+        setTestCaseCounter(currentIdCounter);
         toast({
           title: "Success!",
           description: `${newTestCases.length} test cases ${append ? 'added' : 'generated'}.`,
@@ -83,12 +82,12 @@ export default function HomePage(): ReactElement {
           description: "The AI couldn't find any new test cases for this URL, or the URL might be inaccessible for AI analysis.",
           variant: "default",
         });
-        if (!append && testCases.length === 0) setTestCases([]); // Only clear if not appending and no TCs existed before
+        if (!append && testCases.length === 0) setTestCases([]);
       }
     } catch (err) {
       console.error("Error generating test cases:", err);
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(`Failed to generate test cases: ${errorMessage}`);
+      setError(`Failed to generate test cases: ${errorMessage}. The AI might have issues accessing the URL or interpreting its content.`);
       toast({
         title: "Error Generating Tests",
         description: `Failed to generate test cases. ${errorMessage}. The preview might still work.`,
@@ -149,6 +148,18 @@ export default function HomePage(): ReactElement {
       }
     }
   };
+
+  const handleResetAll = () => {
+    setTestCases([]);
+    setPreviewUrl(null);
+    setUrlForForm(null); 
+    setError(null);
+    setTestCaseCounter(1);
+    toast({
+      title: "Application Reset",
+      description: "All test cases, preview, and URL inputs have been cleared.",
+    });
+  };
   
   useEffect(() => {
     if (previewUrl && error?.includes("Could not load preview")) {
@@ -158,8 +169,8 @@ export default function HomePage(): ReactElement {
 
 
   const iframeDimensions = (() => {
-    if (!previewUrl || !selectedResolution) { // No "auto" mode, so rely on selectedResolution
-      return { width: "0px", height: "0px", isFixed: false }; // Default to not fixed if no preview or resolution
+    if (!selectedResolution) { // Should always have a selected resolution now
+      return { width: "0px", height: "0px", isFixed: false }; 
     }
     const [width, height] = selectedResolution.split('x').map(Number);
     return { width: `${width}px`, height: `${height}px`, isFixed: true };
@@ -167,12 +178,17 @@ export default function HomePage(): ReactElement {
 
   // Styles for the iframe itself
   const iframeDynamicStyles = {
-    minWidth: iframeDimensions.width,
-    minHeight: iframeDimensions.height,
-    maxWidth: iframeDimensions.width,
-    maxHeight: iframeDimensions.height,
+    minWidth: iframeDimensions.isFixed ? iframeDimensions.width : '100%',
+    minHeight: iframeDimensions.isFixed ? iframeDimensions.height : '100%',
+    maxWidth: iframeDimensions.isFixed ? iframeDimensions.width : '100%',
+    maxHeight: iframeDimensions.isFixed ? iframeDimensions.height : '100%',
+    border: '1px solid hsl(var(--border))',
+    borderRadius: 'var(--radius)',
+    flexGrow: iframeDimensions.isFixed ? 0 : 1, // Allow flex grow only if not fixed
   };
-
+  
+  // Key for iframe to force re-render on URL change or reset
+  const iframeKey = previewUrl ? `${previewUrl}-${selectedResolution}` : `empty-preview-${selectedResolution}`;
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -182,9 +198,14 @@ export default function HomePage(): ReactElement {
           aria-labelledby="url-input-heading"
           className="flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm p-6"
         >
-          <h1 id="url-input-heading" className="text-2xl font-semibold mb-4">
-            Generate Test Cases with AI
-          </h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 id="url-input-heading" className="text-2xl font-semibold">
+              Generate Test Cases with AI
+            </h1>
+            <Button variant="outline" onClick={handleResetAll} size="sm">
+              <RotateCcw className="mr-2 h-4 w-4" /> Reset All
+            </Button>
+          </div>
           <p className="text-muted-foreground mb-6">
             Provide the URL of the web application you want to test. Use "Preview" to load the site below, or "Generate Tests" to preview and create test cases. If you navigate within the preview, update the URL in this field or the preview URL field to generate tests for the new page.
           </p>
@@ -239,6 +260,7 @@ export default function HomePage(): ReactElement {
                     onChange={(e) => {
                         const newUrl = e.target.value;
                         setPreviewUrl(newUrl);
+                        // Also update the main form's URL if user types here
                         setUrlForForm(newUrl); 
                         if (error?.includes("Could not load preview")) setError(null);
                     }}
@@ -252,7 +274,7 @@ export default function HomePage(): ReactElement {
                 </div>
               ) : (
                 <CardDescription className="mt-2">
-                  The panel below displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features. Any changes made within the iframe will be reflected here.
+                  The panel below displays a live preview of the entered URL. Interact with the webpage here to verify UI elements and navigate through features.
                 </CardDescription>
               )}
                {error && error.startsWith("Could not load preview") && (
@@ -266,29 +288,23 @@ export default function HomePage(): ReactElement {
             <CardContent className="flex-grow flex flex-col p-0 sm:p-2 md:p-4 overflow-auto">
               {previewUrl ? (
                 <div 
-                    className="w-full" // Takes full width of padded CardContent
+                    className="w-full"
                     style={{ 
-                        overflow: 'auto', // Wrapper div is scrollable
+                        overflow: 'auto', 
                         display: 'flex', 
-                        flexDirection: 'column', // Align items on vertical axis
-                        justifyContent: 'center', // Center iframe vertically
-                        alignItems: 'center', // Center iframe horizontally
-                        flexGrow: 1, // Takes available vertical space
+                        flexDirection: 'column',
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        flexGrow: 1, 
                     }}
                 >
                     <iframe
                         id="website-preview-iframe"
-                        key={previewUrl + selectedResolution} 
+                        key={iframeKey} 
                         src={previewUrl}
                         title="Website Preview"
-                        width={iframeDimensions.width.replace('px','')}
-                        height={iframeDimensions.height.replace('px','')}
-                        style={{
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: 'var(--radius)',
-                            ...iframeDynamicStyles, // Applies fixed width/height
-                        }}
-                        // No w-full h-full needed here, size is fixed by styles
+                        style={iframeDynamicStyles}
+                        className={!iframeDimensions.isFixed ? 'w-full h-full' : ''} // Use classes for responsive fill
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" 
                         onError={(e) => {
                             console.error("Iframe loading error:", e);
@@ -353,7 +369,7 @@ export default function HomePage(): ReactElement {
                 }
               }}
               isLoading={isLoading}
-              canGenerateMore={!!previewUrl}
+              canGenerateMore={!!previewUrl && testCases.length > 0}
             />
           )}
         </section>
@@ -376,4 +392,3 @@ export default function HomePage(): ReactElement {
     </div>
   );
 }
-
