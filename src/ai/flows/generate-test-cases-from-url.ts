@@ -25,7 +25,6 @@ const TestCaseSchema = z.object({
 });
 
 const GenerateTestCasesFromUrlOutputSchema = z.object({
-  analysisSummary: z.string().describe('A brief summary of the key interactive elements and user flows identified on the page, and the overall testing strategy applied.'),
   testCases: z.array(TestCaseSchema).describe('An array of generated test cases.'),
 });
 export type GenerateTestCasesFromUrlOutput = z.infer<typeof GenerateTestCasesFromUrlOutputSchema>;
@@ -40,35 +39,23 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateTestCasesFromUrlOutputSchema},
   prompt: `You are an expert QA Engineer specializing in web application testing. Your task is to analyze the webpage found at the URL: {{{url}}} and generate comprehensive test cases.
 
-First, perform a detailed analysis of the page:
-1.  **Identify Key Interactive Elements**: Scan the page to find all significant interactive UI elements. Pay close attention to:
-    *   Buttons (e.g., \`<button>\`, \`<input type="button">\`, \`<input type="submit">\`).
-    *   Clickable links (\`<a>\` tags) that trigger actions (not just navigation to a static page, unless that's the primary action).
-    *   Input fields (text, email, password, number, search, etc.).
-    *   Forms and their main components.
-    *   Select/dropdown menus.
-    *   Checkboxes and radio buttons.
-    *   For each element, note its purpose, visible text/label, and any identifiers (like ID or name if available and relevant).
-2.  **Infer Main User Actions/Flows**: Based on the identified elements, describe the main user interactions or tasks that seem possible on this page (e.g., "User login," "Product search," "Newsletter subscription").
-3.  **Outline Testing Strategy**: Briefly explain your overall strategy for generating test cases based on this analysis (e.g., "Focus on primary call-to-action buttons, form validations, and ensuring all interactive elements are present and responsive.").
+Analyze the page to identify key interactive elements and user actions. Based on this, generate test cases.
 
-Based on your analysis, provide an 'analysisSummary' that covers these points.
-
-Then, generate the 'testCases':
-*   **Click Action Tests**: For every button and actionable link identified, create a test case to verify what happens when it's clicked.
+Focus on the following types of test cases:
+1.  **Click Action Tests**: For every button and actionable link identified, create a test case to verify what happens when it's clicked.
     *   *Title*: Should clearly state the action, e.g., "Verify 'Submit' button functionality."
     *   *Description*: Explain what is being tested, e.g., "Test that clicking the 'Submit' button on the login form attempts to log the user in."
     *   *Steps*: Provide clear, numbered steps, e.g., "1. Navigate to the page. 2. Locate the 'Submit' button. 3. Click the 'Submit' button."
     *   *Expected Result*: Describe the observable outcome, e.g., "User is redirected to the dashboard page," or "An error message 'Invalid credentials' is displayed."
-*   **Element Presence Tests**: For important elements (both interactive and key static elements that confirm page context), create test cases to verify they are present and visible.
+2.  **Element Presence Tests**: For important elements (both interactive and key static elements that confirm page context), create test cases to verify they are present and visible.
     *   *Title*: e.g., "Verify 'Username' input field is present."
     *   *Description*: e.g., "Check that the username input field is visible on the login form."
     *   *Steps*: e.g., "1. Navigate to the page. 2. Look for the 'Username' input field."
     *   *Expected Result*: e.g., "The 'Username' input field is visible."
-*   **Basic Form Interaction Tests**: For forms, verify the presence of key input fields and the general submission action (this might be covered by button click tests if there's a submit button).
+3.  **Basic Form Interaction Tests**: For forms, verify the presence of key input fields and the general submission action (this might be covered by button click tests if there's a submit button).
 
 Output Format:
-*   Return your findings as a JSON object with two keys: 'analysisSummary' (a string) and 'testCases' (an array of test case objects).
+*   Return your findings as a JSON object with a single key: 'testCases' (an array of test case objects).
 *   Each test case object in the 'testCases' array MUST conform to the following schema:
     *   \`id\`: (This will be overridden by the client)
     *   \`title\`: A descriptive title for the test case.
@@ -76,7 +63,7 @@ Output Format:
     *   \`steps\`: An array of strings, where each string is a step to execute the test case.
     *   \`expectedResult\`: A string describing the expected result after executing the test case.
 
-Focus on creating practical, actionable test cases based on the elements and interactions you can identify from the webpage's content. If the page is very complex, prioritize the most obvious and critical interactions. Ensure your entire output (summary and test cases) strictly adheres to the defined output schema.
+Focus on creating practical, actionable test cases based on the elements and interactions you can identify from the webpage's content. If the page is very complex, prioritize the most obvious and critical interactions. Ensure your entire output strictly adheres to the defined output schema.
   `,
 });
 
@@ -88,8 +75,7 @@ const generateTestCasesFromUrlFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    // Ensure output is not null and testCases array exists, even if empty. Provide a default summary if none.
-    return output || { analysisSummary: "No analysis summary provided by the AI.", testCases: [] };
+    // Ensure output is not null and testCases array exists, even if empty.
+    return output || { testCases: [] };
   }
 );
-

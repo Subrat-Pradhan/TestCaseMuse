@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, type ReactElement, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import type { TestCase } from '@/types/test-case';
 import { UrlInputForm } from '@/components/features/test-generator/url-input-form';
 import { TestCaseTable } from '@/components/features/test-generator/test-case-table';
@@ -13,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor, WandSparkles, RotateCcw, Info } from 'lucide-react';
+import { Terminal, Eye, Copy as CopyIcon, Smartphone, Monitor, RotateCcw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { generateTestCasesFromUrl, type GenerateTestCasesFromUrlOutput } from '@/ai/flows/generate-test-cases-from-url';
@@ -37,8 +38,6 @@ export default function HomePage(): ReactElement {
   const [urlForForm, setUrlForForm] = useState<string | null>(null);
   const [selectedResolution, setSelectedResolution] = useState<string>(resolutions[0].value);
   const [testCaseCounter, setTestCaseCounter] = useState<number>(1);
-  const [analysisSummary, setAnalysisSummary] = useState<string | null>(null);
-
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
@@ -54,9 +53,6 @@ export default function HomePage(): ReactElement {
   const handleGenerateTests = async (url: string, append: boolean = false) => {
     setIsLoading(true);
     setError(null);
-    if (!append) {
-      setAnalysisSummary(null); // Clear previous summary for new generation
-    }
     
     let currentIdCounter = append ? testCaseCounter : 1;
     if (!append) {
@@ -68,10 +64,6 @@ export default function HomePage(): ReactElement {
     try {
       const result: GenerateTestCasesFromUrlOutput = await generateTestCasesFromUrl({ url });
       
-      if (result.analysisSummary) {
-        setAnalysisSummary(result.analysisSummary);
-      }
-
       if (result.testCases && result.testCases.length > 0) {
         const newTestCases = result.testCases.map(tc => {
           const formattedId = `TC${String(currentIdCounter).padStart(3, '0')}`;
@@ -83,7 +75,7 @@ export default function HomePage(): ReactElement {
         setTestCaseCounter(currentIdCounter);
         toast({
           title: "Success!",
-          description: `${newTestCases.length} test cases ${append ? 'added' : 'generated'}. ${result.analysisSummary ? 'Analysis summary also available.' : ''}`,
+          description: `${newTestCases.length} test cases ${append ? 'added' : 'generated'}.`,
           className: "bg-accent text-accent-foreground",
         });
       } else {
@@ -165,10 +157,9 @@ export default function HomePage(): ReactElement {
     setUrlForForm(null); 
     setError(null);
     setTestCaseCounter(1);
-    setAnalysisSummary(null);
     toast({
       title: "Application Reset",
-      description: "All test cases, preview, URL inputs, and analysis have been cleared.",
+      description: "All test cases, preview, and URL inputs have been cleared.",
     });
   };
   
@@ -194,7 +185,7 @@ export default function HomePage(): ReactElement {
     maxHeight: iframeDimensions.height,
     border: '1px solid hsl(var(--border))',
     borderRadius: 'var(--radius)',
-    flexShrink: 0, // Prevent iframe from shrinking if container is too small
+    flexShrink: 0, 
   };
   
   const iframeKey = previewUrl ? `${previewUrl}-${selectedResolution}` : `empty-preview-${selectedResolution}`;
@@ -298,13 +289,13 @@ export default function HomePage(): ReactElement {
             >
               {previewUrl ? (
                 <div 
-                    className="w-full" // Wrapper to control centering
+                    className="w-full" 
                     style={{ 
                         display: 'flex', 
                         justifyContent: 'center', 
                         alignItems: 'center', 
                         flexGrow: 1, 
-                        overflow: 'auto', // Allow scrolling for the wrapper if iframe is too big
+                        overflow: 'auto', 
                     }}
                 >
                     <iframe
@@ -343,36 +334,9 @@ export default function HomePage(): ReactElement {
           </Card>
         </section>
 
-        {/* Section 3: AI Analysis Summary */}
-        {(isLoading && !analysisSummary) && (
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <WandSparkles className="mr-2 h-6 w-6 text-primary" />
-                AI Analysis Insights
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-6 w-1/4 mb-2" />
-              <Skeleton className="h-4 w-full mb-1" />
-              <Skeleton className="h-4 w-full mb-1" />
-              <Skeleton className="h-4 w-3/4" />
-            </CardContent>
-          </Card>
-        )}
-        {analysisSummary && !isLoading && (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>AI Analysis Insights</AlertTitle>
-            <AlertDescription>
-              <pre className="whitespace-pre-wrap font-sans text-sm">{analysisSummary}</pre>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Section 4: Test Cases */}
+        {/* Section 3: Test Cases */}
         <section aria-labelledby="test-cases-heading" className="flex flex-col">
-          {isLoading && testCases.length === 0 && !analysisSummary ? ( 
+          {isLoading && testCases.length === 0 ? ( 
             <div className="space-y-4 p-1 flex-grow flex flex-col">
               <div className="flex justify-between items-center">
                 <Skeleton className="h-8 w-1/3" />
@@ -427,4 +391,3 @@ export default function HomePage(): ReactElement {
     </div>
   );
 }
-
